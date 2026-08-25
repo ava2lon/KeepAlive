@@ -125,15 +125,16 @@ jobs:
             checked_count=$((checked_count + 1))
             check_space "$name" "$url"
           done <<'SPACES'
-ava2lon-litellm|https://ava2lon-litellm.hf.space/
-ava2lon-flux|https://ava2lon-flux.hf.space/
-basyx-n8n|https://basyx-n8n.hf.space/
-basyx-mediarouter|https://basyx-mediarouter.hf.space/
-basyx-whisper|https://basyx-whisper.hf.space/
-basyx-ai-gateway|https://basyx-ai-gateway.hf.space/
-ava2lon-ktts|https://ava2lon-ktts.hf.space/
-ava2lon-ffmpeg|https://ava2lon-ffmpeg.hf.space/
-ava2lon-studio|https://ava2lon-studio.hf.space/
-SPACES
+          "ava2lon-litellm|https://ava2lon-litellm.hf.space/"
+          "ava2lon-flux|https://ava2lon-flux.hf.space/"
+          "basyx-n8n|https://basyx-n8n.hf.space/"
+          "basyx-mediarouter|https://basyx-mediarouter.hf.space/"
+          "basyx-whisper|https://basyx-whisper.hf.space/"
+          "basyx-ai-gateway|https://basyx-ai-gateway.hf.space/"
+          "ava2lon-ktts|https://ava2lon-ktts.hf.space/"
+          "ava2lon-ffmpeg|https://ava2lon-ffmpeg.hf.space/"
+          "ava2lon-studio|https://ava2lon-studio.hf.space/"
+          SPACES
 
           footer
+
