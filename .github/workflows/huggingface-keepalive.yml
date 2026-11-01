@@ -130,6 +130,8 @@ jobs:
           basyx-whisper|https://basyx-whisper.hf.space/
           basyx-ai-gateway|https://basyx-ai-gateway.hf.space/
           ava2lon-ktts|https://ava2lon-ktts.hf.space/
+          basyx-wan|https://basyx-wan.hf.space/
+          basyd-sfx|https://basyd-sfx.hf.space/
           SPACES
 
           footer
