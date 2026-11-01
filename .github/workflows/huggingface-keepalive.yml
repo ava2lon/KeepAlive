@@ -1,7 +1,6 @@
 name: Hugging Face Spaces Keepalive
 # Project docs: README.md
 
-
 on:
   schedule:
     - cron: "*/30 * * * *"
@@ -19,13 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Check Hugging Face Spaces
         shell: bash
         run: |
-          set -o pipefail
+          set -uo pipefail
 
           success_count=0
           failure_count=0
@@ -65,11 +61,12 @@ jobs:
           check_space() {
             local name="$1"
             local url="$2"
-            local start_time end_time elapsed status output
+            local start_time end_time elapsed status output curl_error_file curl_exit
 
             start_time="$(date +%s%N)"
+            curl_error_file="$(mktemp)"
 
-            if ! output="$(curl \
+            if output="$(curl \
                   --location \
                   --silent \
                   --show-error \
@@ -80,36 +77,37 @@ jobs:
                   --retry 3 \
                   --retry-delay 5 \
                   --retry-all-errors \
-                  "$url" 2>&1)"; then
-              status="000"
-              elapsed="0"
+                  "$url" 2>"$curl_error_file")"; then
+              read -r status _ <<< "$output"
+              curl_exit=0
             else
-              status="$(awk 'END{print $1}' <<<"$output")"
-              elapsed="$(awk 'END{print $2}' <<<"$output")"
+              curl_exit=$?
+              status="000"
             fi
 
             end_time="$(date +%s%N)"
             elapsed="$(( (end_time - start_time) / 1000000 ))"
-
-            if [[ -z "$elapsed" ]]; then
-              elapsed="0"
-            fi
-
-            if [[ "$status" =~ ^[0-9]+$ ]] && (( status >= 200 && status < 400 )); then
-              result="SUCCESS"
-              success_count=$((success_count + 1))
-            else
-              result="FAILED"
-              failure_count=$((failure_count + 1))
-              failed_spaces+=("$name")
-            fi
 
             echo "Checking: $name"
             echo "URL: $url"
             echo
             echo "HTTP Status: $status"
             echo "Response Time: ${elapsed}ms"
-            echo "Result: $result"
+
+            if (( curl_exit == 0 )) && [[ "$status" =~ ^[0-9]+$ ]] && (( status >= 200 && status < 400 )); then
+              echo "Result: SUCCESS"
+              success_count=$((success_count + 1))
+            else
+              echo "Result: FAILED"
+              failure_count=$((failure_count + 1))
+              failed_spaces+=("$name")
+              if [[ -s "$curl_error_file" ]]; then
+                echo "curl error:"
+                sed 's/^/  /' "$curl_error_file"
+              fi
+            fi
+
+            rm -f "$curl_error_file"
             echo
             printf -- '-%.0s' {1..52}; echo
             echo
@@ -118,23 +116,27 @@ jobs:
           header
 
           while IFS='|' read -r name url; do
-            if [[ -z "${name// }" || -z "${url// }" ]]; then
+            name="${name#"\${name%%[![:space:]]*}"}"
+            name="${name%"\${name##*[![:space:]]}"}"
+            url="${url#"\${url%%[![:space:]]*}"}"
+            url="${url%"\${url##*[![:space:]]}"}"
+
+            if [[ -z "$name" || -z "$url" ]]; then
               continue
             fi
 
             checked_count=$((checked_count + 1))
             check_space "$name" "$url"
           done <<'SPACES'
-          "ava2lon-litellm|https://ava2lon-litellm.hf.space/"
-          "ava2lon-flux|https://ava2lon-flux.hf.space/"
-          "basyx-n8n|https://basyx-n8n.hf.space/"
-          "basyx-mediarouter|https://basyx-mediarouter.hf.space/"
-          "basyx-whisper|https://basyx-whisper.hf.space/"
-          "basyx-ai-gateway|https://basyx-ai-gateway.hf.space/"
-          "ava2lon-ktts|https://ava2lon-ktts.hf.space/"
-          "ava2lon-ffmpeg|https://ava2lon-ffmpeg.hf.space/"
-          "ava2lon-studio|https://ava2lon-studio.hf.space/"
+          ava2lon-litellm|https://ava2lon-litellm.hf.space/
+          ava2lon-flux|https://ava2lon-flux.hf.space/
+          basyx-n8n|https://basyx-n8n.hf.space/
+          basyx-mediarouter|https://basyx-mediarouter.hf.space/
+          basyx-whisper|https://basyx-whisper.hf.space/
+          basyx-ai-gateway|https://basyx-ai-gateway.hf.space/
+          ava2lon-ktts|https://ava2lon-ktts.hf.space/
+          ava2lon-ffmpeg|https://ava2lon-ffmpeg.hf.space/
+          ava2lon-studio|https://ava2lon-studio.hf.space/
           SPACES
 
           footer
-
