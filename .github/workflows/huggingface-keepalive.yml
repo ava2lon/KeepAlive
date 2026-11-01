@@ -131,7 +131,6 @@ jobs:
           basyx-ai-gateway|https://basyx-ai-gateway.hf.space/
           ava2lon-ktts|https://ava2lon-ktts.hf.space/
           ava2lon-ffmpeg|https://ava2lon-ffmpeg.hf.space/
-          ava2lon-studio|https://ava2lon-studio.hf.space/
           SPACES
 
           footer
