@@ -132,6 +132,7 @@ jobs:
           ava2lon-ktts|https://ava2lon-ktts.hf.space/
           basyx-wan|https://basyx-wan.hf.space/
           basyd-sfx|https://basyd-sfx.hf.space/
+          basyd-music|https://basyd-music.hf.space/
           SPACES
 
           footer
