@@ -116,11 +116,6 @@ jobs:
           header
 
           while IFS='|' read -r name url; do
-            name="${name#"\${name%%[![:space:]]*}"}"
-            name="${name%"\${name##*[![:space:]]}"}"
-            url="${url#"\${url%%[![:space:]]*}"}"
-            url="${url%"\${url##*[![:space:]]}"}"
-
             if [[ -z "$name" || -z "$url" ]]; then
               continue
             fi
