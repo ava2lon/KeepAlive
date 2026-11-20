@@ -25,8 +25,10 @@ jobs:
 
           success_count=0
           failure_count=0
-          failed_spaces=()
           checked_count=0
+          failed_spaces=()
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "$tmp_dir"' EXIT
 
           header() {
             printf '=%.0s' {1..52}; echo
@@ -35,36 +37,13 @@ jobs:
             echo
           }
 
-          footer() {
-            printf '=%.0s' {1..52}; echo
-            echo "Summary"
-            printf '=%.0s' {1..52}; echo
-            echo
-            echo "Total Spaces: $checked_count"
-            echo "Successful: $success_count"
-            echo "Failed: $failure_count"
-            echo
-
-            if (( failure_count > 0 )); then
-              echo "Failed Spaces:"
-              for failed_space in "${failed_spaces[@]}"; do
-                echo "- $failed_space"
-              done
-              echo
-              echo "Workflow result: FAILURE"
-              exit 1
-            fi
-
-            echo "Workflow result: SUCCESS"
-          }
-
           check_space() {
             local name="$1"
             local url="$2"
             local start_time end_time elapsed status output curl_error_file curl_exit
 
             start_time="$(date +%s%N)"
-            curl_error_file="$(mktemp)"
+            curl_error_file="$(mktemp "$tmp_dir/curl-error.XXXXXX")"
 
             if output="$(curl \
                   --location \
@@ -96,32 +75,38 @@ jobs:
 
             if (( curl_exit == 0 )) && [[ "$status" =~ ^[0-9]+$ ]] && (( status >= 200 && status < 400 )); then
               echo "Result: SUCCESS"
-              success_count=$((success_count + 1))
-            else
-              echo "Result: FAILED"
-              failure_count=$((failure_count + 1))
-              failed_spaces+=("$name")
-              if [[ -s "$curl_error_file" ]]; then
-                echo "curl error:"
-                sed 's/^/  /' "$curl_error_file"
-              fi
+              return 0
             fi
 
-            rm -f "$curl_error_file"
-            echo
-            printf -- '-%.0s' {1..52}; echo
-            echo
+            echo "Result: FAILED"
+            if [[ -s "$curl_error_file" ]]; then
+              echo "curl error:"
+              sed 's/^/  /' "$curl_error_file"
+            fi
+            return 1
           }
 
           header
 
+          pids=()
+          names=()
+          logs=()
+          index=0
+
+          # Run checks concurrently so the 10-minute job limit is not consumed
+          # by the sum of every Space's individual retry/timeout window.
           while IFS='|' read -r name url; do
             if [[ -z "$name" || -z "$url" ]]; then
               continue
             fi
 
             checked_count=$((checked_count + 1))
-            check_space "$name" "$url"
+            log_file="$tmp_dir/space-$index.log"
+            names+=("$name")
+            logs+=("$log_file")
+            check_space "$name" "$url" >"$log_file" 2>&1 &
+            pids+=("$!")
+            index=$((index + 1))
           done <<'SPACES'
           ava2lon-litellm|https://ava2lon-litellm.hf.space/
           ava2lon-flux|https://ava2lon-flux.hf.space/
@@ -135,4 +120,37 @@ jobs:
           basyd-music|https://basyd-music.hf.space/
           SPACES
 
-          footer
+          for i in "${!pids[@]}"; do
+            if wait "${pids[$i]}"; then
+              success_count=$((success_count + 1))
+            else
+              failure_count=$((failure_count + 1))
+              failed_spaces+=("${names[$i]}")
+            fi
+
+            cat "${logs[$i]}"
+            echo
+            printf -- '-%.0s' {1..52}; echo
+            echo
+          done
+
+          printf '=%.0s' {1..52}; echo
+          echo "Summary"
+          printf '=%.0s' {1..52}; echo
+          echo
+          echo "Total Spaces: $checked_count"
+          echo "Successful: $success_count"
+          echo "Failed: $failure_count"
+          echo
+
+          if (( failure_count > 0 )); then
+            echo "Failed Spaces:"
+            for failed_space in "${failed_spaces[@]}"; do
+              echo "- $failed_space"
+            done
+            echo
+            echo "Workflow result: FAILURE"
+            exit 1
+          fi
+
+          echo "Workflow result: SUCCESS"
